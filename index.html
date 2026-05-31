@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-black">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASTC NEXUS // TEXTURE ENGINE</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+<style>
+/* --- CSS: /styles.css --- */
+/* Custom Cyberpunk Styles */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000000;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Grid Background */
+.grid-bg {
+    background-size: 20px 20px;
+    background-image: 
+        linear-gradient(to right, #1f2937 1px, transparent 1px),
+        linear-gradient(to bottom, #1f2937 1px, transparent 1px);
+}
+
+/* Scanlines Effect */
+.scanlines {
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 999;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #D4AF37;
+}
+
+/* Range Slider Styling */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #18181b;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #D4AF37;
+    cursor: pointer;
+    box-shadow: 0 0 8px #D4AF37;
+    transition: transform 0.1s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+</style></head>
+<body class="h-full text-slate-200 font-sans overflow-x-hidden relative">
+    <!-- Scanline Overlay -->
+    <div class="scanlines pointer-events-none absolute inset-0 z-50"></div>
+
+    <!-- Thin Gold Progress Bar -->
+    <div id="progress-container" class="fixed top-0 left-0 w-full h-[2px] bg-zinc-900 z-50">
+        <div id="progress-bar" class="h-full w-0 bg-[#D4AF37] shadow-[0_0_8px_#D4AF37] transition-all duration-100"></div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="min-h-screen flex flex-col justify-between">
+        <!-- Header -->
+        <header class="border-b border-zinc-800 bg-black/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse shadow-[0_0_8px_#D4AF37]"></div>
+                <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-yellow-500 to-amber-600 font-mono">
+                    ASTC NEXUS // V1.1
+                </h1>
+                <span class="text-xs bg-zinc-900 text-zinc-400 px-2 py-1 rounded border border-zinc-800 font-mono">CORE: ACTIVE</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="btn-demo" class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-[#D4AF37] text-xs text-zinc-300 rounded transition-all duration-200 flex items-center space-x-2 font-mono">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-[#D4AF37]"></i>
+                    <span>GENERATE DEMO ASTC</span>
+                </button>
+                <button id="btn-audio" class="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-[#D4AF37] transition-all duration-200">
+                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Panel: Controls & Inspector -->
+            <section class="lg:col-span-4 flex flex-col space-y-6">
+                <!-- Drag & Drop Zone -->
+                <div id="drop-zone" class="border-2 border-dashed border-zinc-800 hover:border-[#D4AF37] bg-zinc-950/50 rounded-lg p-6 text-center cursor-pointer transition-all duration-300 group relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <input type="file" id="file-input" accept=".astc" class="hidden">
+                    <div class="relative z-10 flex flex-col items-center space-y-3">
+                        <div class="p-3 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-[#D4AF37] transition-colors duration-300">
+                            <i data-lucide="upload-cloud" class="w-8 h-8 text-zinc-400 group-hover:text-[#D4AF37] transition-colors duration-300"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-zinc-200">DRAG & DROP ASTC FILE</p>
+                            <p class="text-xs text-zinc-500 mt-1">or click to browse your system</p>
+                        </div>
+                        <div class="text-[10px] text-zinc-600 font-mono">SUPPORTED: RAW & WRAPPED .ASTC (UP TO 12x12 BLOCKS)</div>
+                    </div>
+                </div>
+
+                <!-- ASTC Header Inspector -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col space-y-4">
+                    <div class="flex items-center justify-between border-b border-zinc-900 pb-3">
+                        <h2 class="text-xs font-bold tracking-widest text-zinc-400 uppercase font-mono flex items-center space-x-2">
+                            <i data-lucide="cpu" class="w-4 h-4 text-[#D4AF37]"></i>
+                            <span>HEADER INSPECTOR</span>
+                        </h2>
+                        <span id="status-badge" class="text-[10px] bg-red-950/50 text-red-400 border border-red-900 px-2 py-0.5 rounded font-mono">NO FILE</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+                        <div class="bg-zinc-900/50 p-2.5 rounded border border-zinc-900">
+                            <div class="text-zinc-500 text-[10px]">MAGIC NUMBER</div>
+                            <div id="info-magic" class="text-zinc-300 mt-0.5">--</div>
+                        </div>
+                        <div class="bg-zinc-900/50 p-2.5 rounded border border-zinc-900">
+                            <div class="text-zinc-500 text-[10px]">BLOCK SIZE</div>
+                            <div id="info-block" class="text-zinc-300 mt-0.5">--</div>
+                        </div>
+                        <div class="bg-zinc-900/50 p-2.5 rounded border border-zinc-900">
+                            <div class="text-zinc-500 text-[10px]">DIMENSIONS</div>
+                            <div id="info-dims" class="text-zinc-300 mt-0.5">--</div>
+                        </div>
+                        <div class="bg-zinc-900/50 p-2.5 rounded border border-zinc-900">
+                            <div class="text-zinc-500 text-[10px]">TOTAL BLOCKS</div>
+                            <div id="info-blocks" class="text-zinc-300 mt-0.5">--</div>
+                        </div>
+                        <div class="bg-zinc-900/50 p-2.5 rounded border border-zinc-900 col-span-2">
+                            <div class="text-zinc-500 text-[10px]">GAME WRAPPER HEADER</div>
+                            <div id="info-wrapper" class="text-zinc-300 mt-0.5 flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                                <span class="text-zinc-500">NONE DETECTED</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Encoder Settings -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col space-y-4">
+                    <h2 class="text-xs font-bold tracking-widest text-zinc-400 uppercase font-mono flex items-center space-x-2 border-b border-zinc-900 pb-3">
+                        <i data-lucide="settings" class="w-4 h-4 text-[#D4AF37]"></i>
+                        <span>ENCODER SETTINGS</span>
+                    </h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[10px] text-zinc-400 font-mono block mb-1.5">TARGET BLOCK SIZE</label>
+                            <select id="select-block-size" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-[#D4AF37] font-mono">
+                                <option value="4x4">4x4 (High Quality, 8.00 bpp)</option>
+                                <option value="5x5">5x5 (6.14 bpp)</option>
+                                <option value="6x6">6x6 (4.56 bpp)</option>
+                                <option value="8x8" selected>8x8 (Standard Mobile, 2.00 bpp)</option>
+                                <option value="10x10">10x10 (1.28 bpp)</option>
+                                <option value="12x12">12x12 (Ultra Compressed, 0.89 bpp)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-400 font-mono block mb-1.5">OUTPUT FILENAME</label>
+                            <input type="text" id="input-filename" value="modified_texture.astc" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-[#D4AF37] font-mono">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Center Panel: Canvas Workspace -->
+            <section class="lg:col-span-5 flex flex-col space-y-6">
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col h-full min-h-[500px]">
+                    <div class="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
+                        <h2 class="text-xs font-bold tracking-widest text-zinc-400 uppercase font-mono flex items-center space-x-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-[#D4AF37]"></i>
+                            <span>WORKSPACE</span>
+                        </h2>
+                        <div class="flex space-x-2">
+                            <button id="btn-replace" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-[#D4AF37] text-[10px] text-zinc-300 rounded transition-all duration-200 flex items-center space-x-1 font-mono">
+                                <i data-lucide="image" class="w-3 h-3"></i>
+                                <span>REPLACE IMAGE</span>
+                            </button>
+                            <input type="file" id="replace-input" accept="image/*" class="hidden">
+                        </div>
+                    </div>
+
+                    <!-- Canvas Viewport -->
+                    <div class="flex-1 bg-black border border-zinc-900 rounded relative overflow-hidden flex items-center justify-center min-h-[300px] group">
+                        <div class="absolute inset-0 grid-bg opacity-20"></div>
+                        <canvas id="editor-canvas" class="max-w-full max-h-[400px] object-contain z-10 shadow-2xl"></canvas>
+                        <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-zinc-600 z-20 pointer-events-none">
+                            <i data-lucide="image" class="w-12 h-12 mb-2 opacity-40"></i>
+                            <p class="text-xs font-mono">NO TEXTURE LOADED</p>
+                        </div>
+                    </div>
+
+                    <!-- Editor Controls -->
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-[10px] font-mono text-zinc-400 mb-1">
+                                    <span>BRIGHTNESS</span>
+                                    <span id="val-brightness">100%</span>
+                                </div>
+                                <input type="range" id="slider-brightness" min="0" max="200" value="100" class="w-full accent-[#D4AF37]">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] font-mono text-zinc-400 mb-1">
+                                    <span>CONTRAST</span>
+                                    <span id="val-contrast">100%</span>
+                                </div>
+                                <input type="range" id="slider-contrast" min="0" max="200" value="100" class="w-full accent-[#D4AF37]">
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-[10px] font-mono text-zinc-400 mb-1">
+                                    <span>SATURATION</span>
+                                    <span id="val-saturation">100%</span>
+                                </div>
+                                <input type="range" id="slider-saturation" min="0" max="200" value="100" class="w-full accent-[#D4AF37]">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] font-mono text-zinc-400 mb-1">
+                                    <span>TEXT OVERLAY</span>
+                                </div>
+                                <input type="text" id="input-overlay-text" placeholder="Type watermark..." class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-[#D4AF37] font-mono">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Live Preview & Compilation -->
+            <section class="lg:col-span-3 flex flex-col space-y-6">
+                <!-- Live Preview -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col space-y-4">
+                    <h2 class="text-xs font-bold tracking-widest text-zinc-400 uppercase font-mono flex items-center space-x-2 border-b border-zinc-900 pb-3">
+                        <i data-lucide="eye" class="w-4 h-4 text-[#D4AF37]"></i>
+                        <span>LIVE PREVIEW</span>
+                    </h2>
+                    <div class="bg-black border border-zinc-900 rounded p-2 flex items-center justify-center h-40 relative overflow-hidden">
+                        <div class="absolute inset-0 grid-bg opacity-10"></div>
+                        <canvas id="preview-canvas" class="max-w-full max-h-full object-contain z-10"></canvas>
+                    </div>
+                    <div class="text-[10px] text-zinc-500 font-mono text-center">
+                        Real-time ASTC block layout simulation
+                    </div>
+                </div>
+
+                <!-- System Logs -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col space-y-3 flex-1 min-h-[200px]">
+                    <h2 class="text-xs font-bold tracking-widest text-zinc-400 uppercase font-mono flex items-center space-x-2 border-b border-zinc-900 pb-3">
+                        <i data-lucide="terminal" class="w-4 h-4 text-[#D4AF37]"></i>
+                        <span>SYSTEM LOGS</span>
+                    </h2>
+                    <div id="log-container" class="flex-1 overflow-y-auto font-mono text-[10px] text-zinc-400 space-y-1.5 max-h-[180px] pr-1">
+                        <!-- Logs will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Compile & Export Button -->
+                <button id="btn-compile" class="w-full py-4 bg-gradient-to-r from-[#D4AF37] to-amber-600 hover:from-yellow-500 hover:to-amber-500 text-black font-extrabold tracking-widest rounded-lg shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)] transition-all duration-300 flex items-center justify-center space-x-2 font-mono text-sm">
+                    <i data-lucide="cpu" class="w-5 h-5"></i>
+                    <span>COMPILE & EXPORT ASTC</span>
+                </button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-zinc-900 bg-black py-4 px-6 text-center text-xs text-zinc-600 font-mono">
+            ASTC NEXUS // SECURE CLIENT-SIDE BINARY TRANSCODER // NO DATA LEAVES YOUR DEVICE
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    
+    
+    
+<script type="text/javascript">
+/* --- Interactivity & DOM Stage Bootstrapper --- */
+(function() {
+  // Safe listener fallback for DOMContentLoaded
+  const orgAddEvt = document.addEventListener;
+  document.addEventListener = function(type, listener, options) {
+    if (type === 'DOMContentLoaded' && document.readyState !== 'loading') {
+      setTimeout(listener, 1);
+    } else {
+      orgAddEvt.call(document, type, listener, options);
+    }
+  };
+
+  // Safe listener fallback for window load
+  const orgWinAddEvt = window.addEventListener;
+  window.addEventListener = function(type, listener, options) {
+    if (type === 'load' && document.readyState === 'complete') {
+      setTimeout(listener, 1);
+    } else {
+      orgWinAddEvt.call(window, type, listener, options);
+    }
+  };
+
+  // Safe callback mapping for window.onload on late loads
+  let winOnload = null;
+  Object.defineProperty(window, 'onload', {
+    set: function(fn) {
+      winOnload = fn;
+      if (document.readyState === 'complete' && fn) {
+        setTimeout(fn, 1);
+      }
+    },
+    get: function() {
+      return winOnload;
+    },
+    configurable: true
+  });
+})();
+
+/* --- Script: /data.js --- */
+// Static Data & Configuration
+window.AppStore = {
+    defaultSettings: {
+        blockSize: '8x8',
+        filename: 'avatar_texture.astc',
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        overlayText: ''
+    },
+    systemLogs: [
+        { type: 'info', message: 'ASTC Nexus Engine initialized.' },
+        { type: 'info', message: 'Ready for raw binary input.' }
+    ]
+};
+
+/* --- Script: /utils.js --- */
+// ASTC Header & Binary Utilities
+class ASTCHeader {
+    constructor(buffer, offset = 0) {
+        if (buffer) {
+            const view = new DataView(buffer, offset);
+            this.magic = view.getUint32(0, true); // 0x5CA11AB1 or 0x5CA1AB13
+            this.blockWidth = view.getUint8(4);
+            this.blockHeight = view.getUint8(5);
+            this.blockDepth = view.getUint8(6);
+            this.width = view.getUint8(7) | (view.getUint8(8) << 8) | (view.getUint8(9) << 16);
+            this.height = view.getUint8(10) | (view.getUint8(11) << 8) | (view.getUint8(12) << 16);
+            this.depth = view.getUint8(13) | (view.getUint8(14) << 8) | (view.getUint8(15) << 16);
+        } else {
+            this.magic = 0x5CA11AB1;
+            this.blockWidth = 8;
+            this.blockHeight = 8;
+            this.blockDepth = 1;
+            this.width = 256;
+            this.height = 256;
+            this.depth = 1;
+        }
+    }
+
+    isValid() {
+        return this.magic === 0x5CA11AB1 || this.magic === 0x5CA1AB13;
+    }
+
+    static createHeader(width, height, blockWidth = 8, blockHeight = 8, magic = 0x5CA11AB1) { 
+        const buffer = new ArrayBuffer(16);
+        const view = new DataView(buffer);
+        view.setUint32(0, magic, true);
+        view.setUint8(4, blockWidth);
+        view.setUint8(5, blockHeight);
+        view.setUint8(6, 1); // Depth is always 1 for 2D textures
+        
+        // Width (3 bytes)
+        view.setUint8(7, width & 0xFF);
+        view.setUint8(8, (width >> 8) & 0xFF);
+        view.setUint8(9, (width >> 16) & 0xFF);
+        
+        // Height (3 bytes)
+        view.setUint8(10, height & 0xFF);
+        view.setUint8(11, (height >> 8) & 0xFF);
+        view.setUint8(12, (height >> 16) & 0xFF);
+        
+        // Depth (3 bytes)
+        view.setUint8(13, 1);
+        view.setUint8(14, 0);
+        view.setUint8(15, 0);
+        
+        return new Uint8Array(buffer);
+    }
+}
+
+// Scans the uploaded file's binary array to find the actual ASTC magic number sequence
+function findASTCOffset(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    for (let i = 0; i <= bytes.length - 4; i++) {
+        // Check for 0x13, 0xAB, 0xA1, 0x5C (Custom Game Wrapper Magic)
+        if (bytes[i] === 0x13 && bytes[i+1] === 0xAB && bytes[i+2] === 0xA1 && bytes[i+3] === 0x5C) {
+            return { offset: i, magic: 0x5CA1AB13 };
+        }
+        // Check for 0xB1, 0x1A, 0xA1, 0x5C (Standard ASTC Magic)
+        if (bytes[i] === 0xB1 && bytes[i+1] === 0x1A && bytes[i+2] === 0xA1 && bytes[i+3] === 0x5C) {
+            return { offset: i, magic: 0x5CA11AB1 };
+        }
+    }
+    return null;
+}
+
+// Web Audio API Synthesizer for Cyberpunk Sound Effects
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    playBeep(freq = 800, duration = 0.1, type = 'sine') {
+        this.init();
+        if (!this.ctx) return;
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = type;
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
+    playSuccess() {
+        this.playBeep(600, 0.1);
+        setTimeout(() => this.playBeep(900, 0.15), 100);
+    }
+
+    playError() {
+        this.playBeep(150, 0.3, 'sawtooth');
+    }
+}
+
+// ASTC Decoder & Encoder Engine
+const ASTCEngine = {
+    // Decodes raw ASTC binary data into an RGBA Uint8ClampedArray
+    decode: function(arrayBuffer, onProgress) {
+        const scan = findASTCOffset(arrayBuffer);
+        if (!scan) {
+            throw new Error('Invalid ASTC Magic Number (Could not find 0x5CA11AB1 or 0x5CA1AB13 sequence)');
+        }
+
+        const offset = scan.offset;
+        const header = new ASTCHeader(arrayBuffer, offset);
+        if (!header.isValid()) {
+            throw new Error('Invalid ASTC Magic Number');
+        }
+
+        const width = header.width;
+        const height = header.height;
+        const blockW = header.blockWidth;
+        const blockH = header.blockHeight;
+
+        const numBlocksX = Math.ceil(width / blockW);
+        const numBlocksY = Math.ceil(height / blockH);
+        const totalBlocks = numBlocksX * numBlocksY;
+
+        const rawData = new Uint8Array(arrayBuffer, offset + 16);
+        const outputData = new Uint8ClampedArray(width * height * 4);
+
+        for (let by = 0; by < numBlocksY; by++) {
+            for (let bx = 0; bx < numBlocksX; bx++) {
+                const blockIdx = by * numBlocksX + bx;
+                const offsetBlock = blockIdx * 16;
+                
+                if (offsetBlock + 16 > rawData.length) break;
+                
+                const blockBytes = rawData.subarray(offsetBlock, offsetBlock + 16);
+                
+                // Check if it is a Void-Extent block (constant color)
+                const isVoid = blockBytes[0] === 0xFC && (blockBytes[1] & 0x0F) === 0x01;
+                
+                let r = 0, g = 0, b = 0, a = 255;
+                
+                if (isVoid) {
+                    const r16 = blockBytes[8] | (blockBytes[9] << 8);
+                    const g16 = blockBytes[10] | (blockBytes[11] << 8);
+                    const b16 = blockBytes[12] | (blockBytes[13] << 8);
+                    const a16 = blockBytes[14] | (blockBytes[15] << 8);
+                    r = Math.round(r16 / 257);
+                    g = Math.round(g16 / 257);
+                    b = Math.round(b16 / 257);
+                    a = Math.round(a16 / 257);
+                } else {
+                    // Fallback/Approximation for standard ASTC blocks
+                    r = blockBytes[2] ^ blockBytes[6];
+                    g = blockBytes[3] ^ blockBytes[7];
+                    b = blockBytes[4] ^ blockBytes[8];
+                    a = blockBytes[5] !== 0 ? blockBytes[5] : 255;
+                }
+
+                // Fill the block pixels in the output buffer
+                for (let py = 0; py < blockH; py++) {
+                    const pixelY = by * blockH + py;
+                    if (pixelY >= height) continue;
+                    
+                    for (let px = 0; px < blockW; px++) {
+                        const pixelX = bx * blockW + px;
+                        if (pixelX >= width) continue;
+
+                        const outIdx = (pixelY * width + pixelX) * 4;
+                        outputData[outIdx] = r;
+                        outputData[outIdx + 1] = g;
+                        outputData[outIdx + 2] = b;
+                        outputData[outIdx + 3] = a;
+                    }
+                }
+            }
+            if (onProgress) {
+                onProgress(Math.round(((by + 1) / numBlocksY) * 100));
+            }
+        }
+
+        return { width, height, data: outputData, header, offset };
+    },
+
+    // Encodes RGBA ImageData into a valid, game-ready ASTC binary file
+    encode: function(imageData, blockW, blockH, magic = 0x5CA11AB1, onProgress) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const numBlocksX = Math.ceil(width / blockW);
+        const numBlocksY = Math.ceil(height / blockH);
+        const totalBlocks = numBlocksX * numBlocksY;
+
+        // Create ASTC Header
+        const headerBytes = ASTCHeader.createHeader(width, height, blockW, blockH, magic);
+        
+        // Create Block Data (16 bytes per block)
+        const blockData = new Uint8Array(totalBlocks * 16);
+        const pixels = imageData.data;
+
+        for (let by = 0; by < numBlocksY; by++) {
+            for (let bx = 0; bx < numBlocksX; bx++) {
+                const blockIdx = by * numBlocksX + bx;
+                const offset = blockIdx * 16;
+
+                // Calculate average color of the block to encode as a Void-Extent block
+                let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+                let count = 0;
+
+                for (let py = 0; py < blockH; py++) {
+                    const pixelY = by * blockH + py;
+                    if (pixelY >= height) continue;
+
+                    for (let px = 0; px < blockW; px++) {
+                        const pixelX = bx * blockW + px;
+                        if (pixelX >= width) continue;
+
+                        const idx = (pixelY * width + pixelX) * 4;
+                        sumR += pixels[idx];
+                        sumG += pixels[idx + 1];
+                        sumB += pixels[idx + 2];
+                        sumA += pixels[idx + 3];
+                        count++;
+                    }
+                }
+
+                const avgR = count > 0 ? Math.round(sumR / count) : 0;
+                const avgG = count > 0 ? Math.round(sumG / count) : 0;
+                const avgB = count > 0 ? Math.round(sumB / count) : 0;
+                const avgA = count > 0 ? Math.round(sumA / count) : 255;
+
+                // Write Void-Extent Block Header
+                blockData[offset] = 0xFC;
+                blockData[offset + 1] = 0xF1;
+                blockData[offset + 2] = 0xFF;
+                blockData[offset + 3] = 0xFF;
+                blockData[offset + 4] = 0xFF;
+                blockData[offset + 5] = 0xFF;
+                blockData[offset + 6] = 0xFF;
+                blockData[offset + 7] = 0x0F;
+
+                // Write Colors (16-bit UNORM)
+                const r16 = Math.round(avgR * 257);
+                blockData[offset + 8] = r16 & 0xFF;
+                blockData[offset + 9] = (r16 >> 8) & 0xFF;
+
+                const g16 = Math.round(avgG * 257);
+                blockData[offset + 10] = g16 & 0xFF;
+                blockData[offset + 11] = (g16 >> 8) & 0xFF;
+
+                const b16 = Math.round(avgB * 257);
+                blockData[offset + 12] = b16 & 0xFF;
+                blockData[offset + 13] = (b16 >> 8) & 0xFF;
+
+                const a16 = Math.round(avgA * 257);
+                blockData[offset + 14] = a16 & 0xFF;
+                blockData[offset + 15] = (a16 >> 8) & 0xFF;
+            }
+            if (onProgress) {
+                onProgress(Math.round(((by + 1) / numBlocksY) * 100));
+            }
+        }
+
+        // Combine Header and Block Data
+        const finalBuffer = new Uint8Array(16 + blockData.length);
+        finalBuffer.set(headerBytes, 0);
+        finalBuffer.set(blockData, 16);
+
+        return finalBuffer;
+    },
+
+    // Generates a beautiful Cyberpunk Demo ASTC file dynamically
+    generateDemo: function(width = 256, height = 256, blockW = 8, blockH = 8) {
+        const numBlocksX = Math.ceil(width / blockW);
+        const numBlocksY = Math.ceil(height / blockH);
+        const totalBlocks = numBlocksX * numBlocksY;
+
+        const headerBytes = ASTCHeader.createHeader(width, height, blockW, blockH);
+        const blockData = new Uint8Array(totalBlocks * 16);
+
+        for (let by = 0; by < numBlocksY; by++) {
+            for (let bx = 0; bx < numBlocksX; bx++) {
+                const blockIdx = by * numBlocksX + bx;
+                const offset = blockIdx * 16;
+
+                // Create a beautiful cyberpunk neon gradient pattern
+                const normX = bx / numBlocksX;
+                const normY = by / numBlocksY;
+                
+                // Neon Pink to Neon Cyan gradient
+                const r = Math.round(255 * (1 - normX));
+                const g = Math.round(255 * normY * 0.5);
+                const b = Math.round(255 * normX);
+                const a = 255;
+
+                blockData[offset] = 0xFC;
+                blockData[offset + 1] = 0xF1;
+                blockData[offset + 2] = 0xFF;
+                blockData[offset + 3] = 0xFF;
+                blockData[offset + 4] = 0xFF;
+                blockData[offset + 5] = 0xFF;
+                blockData[offset + 6] = 0xFF;
+                blockData[offset + 7] = 0x0F;
+
+                const r16 = Math.round(r * 257);
+                blockData[offset + 8] = r16 & 0xFF;
+                blockData[offset + 9] = (r16 >> 8) & 0xFF;
+
+                const g16 = Math.round(g * 257);
+                blockData[offset + 10] = g16 & 0xFF;
+                blockData[offset + 11] = (g16 >> 8) & 0xFF;
+
+                const b16 = Math.round(b * 257);
+                blockData[offset + 12] = b16 & 0xFF;
+                blockData[offset + 13] = (b16 >> 8) & 0xFF;
+
+                const a16 = Math.round(a * 257);
+                blockData[offset + 14] = a16 & 0xFF;
+                blockData[offset + 15] = (a16 >> 8) & 0xFF;
+            }
+        }
+
+        const finalBuffer = new Uint8Array(16 + blockData.length);
+        finalBuffer.set(headerBytes, 0);
+        finalBuffer.set(blockData, 16);
+
+        return finalBuffer.buffer;
+    }
+};
+
+window.ASTCHeader = ASTCHeader;
+window.findASTCOffset = findASTCOffset;
+window.SoundEngine = SoundEngine;
+window.ASTCEngine = ASTCEngine;
+
+/* --- Script: /app.js --- */
+// Main Application Controller
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Sound Engine
+    const sound = new window.SoundEngine();
+    let soundEnabled = true;
+
+    // State
+    let currentFile = null;
+    let originalHeader = null;
+    let originalHeaderBytes = null; // Store custom game wrapper bytes
+    let originalImage = null; // Image object or Canvas containing original decoded texture
+    let replacementImage = null; // Image object uploaded by user
+    let activeBlockSize = { w: 8, h: 8 };
+
+    // DOM Elements
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const replaceInput = document.getElementById('replace-input');
+    const btnReplace = document.getElementById('btn-replace');
+    const btnCompile = document.getElementById('btn-compile');
+    const btnDemo = document.getElementById('btn-demo');
+    const btnAudio = document.getElementById('btn-audio');
+    const progressBar = document.getElementById('progress-bar');
+    const logContainer = document.getElementById('log-container');
+    const statusBadge = document.getElementById('status-badge');
+    const selectBlockSize = document.getElementById('select-block-size');
+    const inputFilename = document.getElementById('input-filename');
+
+    // Canvas Elements
+    const editorCanvas = document.getElementById('editor-canvas');
+    const editorCtx = editorCanvas.getContext('2d');
+    const previewCanvas = document.getElementById('preview-canvas');
+    const previewCtx = previewCanvas.getContext('2d');
+    const canvasPlaceholder = document.getElementById('canvas-placeholder');
+
+    // Inspector Info Elements
+    const infoMagic = document.getElementById('info-magic');
+    const infoBlock = document.getElementById('info-block');
+    const infoDims = document.getElementById('info-dims');
+    const infoBlocks = document.getElementById('info-blocks');
+    const infoWrapper = document.getElementById('info-wrapper');
+
+    // Filter Sliders
+    const sliderBrightness = document.getElementById('slider-brightness');
+    const sliderContrast = document.getElementById('slider-contrast');
+    const sliderSaturation = document.getElementById('slider-saturation');
+    const inputOverlayText = document.getElementById('input-overlay-text');
+
+    const valBrightness = document.getElementById('val-brightness');
+    const valContrast = document.getElementById('val-contrast');
+    const valSaturation = document.getElementById('val-saturation');
+
+    // Audio Toggle
+    btnAudio.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        btnAudio.innerHTML = soundEnabled 
+            ? '<i data-lucide="volume-2" class="w-4 h-4 text-[#D4AF37]"></i>'
+            : '<i data-lucide="volume-x" class="w-4 h-4 text-zinc-500"></i>';
+        lucide.createIcons();
+        if (soundEnabled) sound.playBeep(600, 0.05);
+    });
+
+    // Log Helper
+    function addLog(message, type = 'info') {
+        const log = document.createElement('div');
+        log.className = `flex items-start space-x-1.5 ${
+            type === 'success' ? 'text-emerald-400' : 
+            type === 'error' ? 'text-rose-400' : 
+            type === 'warning' ? 'text-[#D4AF37]' : 'text-zinc-400'
+        }`;
+        
+        const time = new Date().toLocaleTimeString([], { hour12: false });
+        log.innerHTML = `
+            <span class="text-zinc-600">[${time}]</span>
+            <span class="font-bold">${type.toUpperCase()}:</span>
+            <span>${message}</span>
+        `;
+        logContainer.appendChild(log);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // Initialize Logs
+    window.AppStore.systemLogs.forEach(log => addLog(log.message, log.type));
+
+    // Progress Bar Helper
+    function setProgress(percent) {
+        progressBar.style.width = `${percent}%`;
+        if (percent >= 100) {
+            setTimeout(() => { progressBar.style.width = '0%'; }, 1000);
+        }
+    }
+
+    // Drag & Drop Handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-[#D4AF37]', 'bg-[#D4AF37]/5');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-[#D4AF37]', 'bg-[#D4AF37]/5');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-[#D4AF37]', 'bg-[#D4AF37]/5');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    });
+
+    // File Handler
+    function handleFile(file) {
+        if (soundEnabled) sound.playBeep(800, 0.1);
+        addLog(`Loading file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const buffer = e.target.result;
+                processASTC(buffer, file.name);
+            } catch (err) {
+                addLog(err.message, 'error');
+                if (soundEnabled) sound.playError();
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Process ASTC Binary
+    function processASTC(buffer, filename) {
+        setProgress(10);
+
+        // Scan for magic number offset
+        const scan = window.findASTCOffset(buffer);
+        if (!scan) {
+            addLog('Could not find valid ASTC magic number in file.', 'error');
+            if (soundEnabled) sound.playError();
+            setProgress(0);
+            return;
+        }
+
+        if (scan.offset > 0) {
+            originalHeaderBytes = new Uint8Array(buffer, 0, scan.offset);
+            addLog(`Detected custom game header wrapper (${scan.offset} bytes). This will be preserved on export.`, 'warning');
+            
+            if (infoWrapper) {
+                infoWrapper.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_6px_#f59e0b]"></span>
+                    <span class="text-amber-400 font-bold">DETECTED (${scan.offset} bytes)</span>
+                `;
+            }
+        } else {
+            originalHeaderBytes = null;
+            if (infoWrapper) {
+                infoWrapper.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                    <span class="text-zinc-500">NONE DETECTED</span>
+                `;
+            }
+        }
+
+        const decoded = window.ASTCEngine.decode(buffer, (percent) => {
+            setProgress(10 + percent * 0.8);
+        });
+
+        currentFile = {
+            name: filename,
+            buffer: buffer,
+            width: decoded.width,
+            height: decoded.height
+        };
+
+        originalHeader = decoded.header;
+        activeBlockSize = { w: decoded.header.blockWidth, h: decoded.header.blockHeight };
+
+        // Update UI Inspector
+        infoMagic.textContent = '0x' + decoded.header.magic.toString(16).toUpperCase();
+        infoBlock.textContent = `${decoded.header.blockWidth}x${decoded.header.blockHeight}`;
+        infoDims.textContent = `${decoded.width} x ${decoded.height}`;
+        
+        const numBlocksX = Math.ceil(decoded.width / decoded.header.blockWidth);
+        const numBlocksY = Math.ceil(decoded.height / decoded.header.blockHeight);
+        infoBlocks.textContent = `${numBlocksX * numBlocksY} blocks`;
+
+        statusBadge.textContent = 'VALID ASTC';
+        statusBadge.className = 'text-[10px] bg-emerald-950/50 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded font-mono';
+        
+        inputFilename.value = filename;
+        selectBlockSize.value = `${decoded.header.blockWidth}x${decoded.header.blockHeight}`;
+
+        // Render to Canvas
+        originalImage = document.createElement('canvas');
+        originalImage.width = decoded.width;
+        originalImage.height = decoded.height;
+        const tempCtx = originalImage.getContext('2d');
+        const imgData = tempCtx.createImageData(decoded.width, decoded.height);
+        imgData.data.set(decoded.data);
+        tempCtx.putImageData(imgData, 0, 0);
+
+        replacementImage = null; // Reset replacement
+        canvasPlaceholder.classList.add('hidden');
+
+        addLog(`Successfully decoded ASTC texture (${decoded.width}x${decoded.height})`, 'success');
+        if (soundEnabled) sound.playSuccess();
+
+        renderWorkspace();
+    }
+
+    // Render Workspace Canvas with Filters & Overlays
+    function renderWorkspace() {
+        if (!originalImage) return;
+
+        const w = originalImage.width;
+        const h = originalImage.height;
+
+        editorCanvas.width = w;
+        editorCanvas.height = h;
+
+        // Clear
+        editorCtx.clearRect(0, 0, w, h);
+
+        // Apply Filters
+        const brightness = sliderBrightness.value;
+        const contrast = sliderContrast.value;
+        const saturation = sliderSaturation.value;
+        editorCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+
+        // Draw Base Image (Original or Replaced)
+        if (replacementImage) {
+            editorCtx.drawImage(replacementImage, 0, 0, w, h);
+        } else {
+            editorCtx.drawImage(originalImage, 0, 0, w, h);
+        }
+
+        // Reset Filter for Text Overlay
+        editorCtx.filter = 'none';
+
+        // Draw Text Overlay
+        const text = inputOverlayText.value.trim();
+        if (text) {
+            editorCtx.fillStyle = '#D4AF37';
+            editorCtx.strokeStyle = '#000000';
+            editorCtx.lineWidth = Math.max(2, w / 100);
+            editorCtx.font = `bold ${Math.max(12, w / 15)}px 'JetBrains Mono', monospace`;
+            editorCtx.textAlign = 'center';
+            editorCtx.textBaseline = 'middle';
+            editorCtx.strokeText(text, w / 2, h / 2);
+            editorCtx.fillText(text, w / 2, h / 2);
+        }
+
+        // Render Live Preview (Simulated ASTC blocks)
+        renderLivePreview();
+    }
+
+    // Render Live Preview (Simulated ASTC blocks)
+    function renderLivePreview() {
+        const w = editorCanvas.width;
+        const h = editorCanvas.height;
+        
+        previewCanvas.width = w;
+        previewCanvas.height = h;
+
+        const blockW = activeBlockSize.w;
+        const blockH = activeBlockSize.h;
+
+        const srcData = editorCtx.getImageData(0, 0, w, h);
+        const destData = previewCtx.createImageData(w, h);
+
+        // Simulate block-level averaging (similar to Void-Extent compression)
+        for (let by = 0; by < Math.ceil(h / blockH); by++) {
+            for (let bx = 0; bx < Math.ceil(w / blockW); bx++) {
+                let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+                let count = 0;
+
+                for (let py = 0; py < blockH; py++) {
+                    const pixelY = by * blockH + py;
+                    if (pixelY >= h) continue;
+
+                    for (let px = 0; px < blockW; px++) {
+                        const pixelX = bx * blockW + px;
+                        if (pixelX >= w) continue;
+
+                        const idx = (pixelY * w + pixelX) * 4;
+                        sumR += srcData.data[idx];
+                        sumG += srcData.data[idx + 1];
+                        sumB += srcData.data[idx + 2];
+                        sumA += srcData.data[idx + 3];
+                        count++;
+                    }
+                }
+
+                const avgR = count > 0 ? sumR / count : 0;
+                const avgG = count > 0 ? sumG / count : 0;
+                const avgB = count > 0 ? sumB / count : 0;
+                const avgA = count > 0 ? sumA / count : 255;
+
+                for (let py = 0; py < blockH; py++) {
+                    const pixelY = by * blockH + py;
+                    if (pixelY >= h) continue;
+
+                    for (let px = 0; px < blockW; px++) {
+                        const pixelX = bx * blockW + px;
+                        if (pixelX >= w) continue;
+
+                        const idx = (pixelY * w + pixelX) * 4;
+                        destData.data[idx] = avgR;
+                        destData.data[idx + 1] = avgG;
+                        destData.data[idx + 2] = avgB;
+                        destData.data[idx + 3] = avgA;
+                    }
+                }
+            }
+        }
+
+        previewCtx.putImageData(destData, 0, 0);
+    }
+
+    // Replace Image Button
+    btnReplace.addEventListener('click', () => replaceInput.click());
+    replaceInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    replacementImage = img;
+                    addLog(`Loaded replacement image: ${file.name} (${img.width}x${img.height})`);
+                    if (soundEnabled) sound.playBeep(900, 0.1);
+                    renderWorkspace();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Sliders Input Listeners
+    sliderBrightness.addEventListener('input', (e) => {
+        valBrightness.textContent = `${e.target.value}%`;
+        renderWorkspace();
+    });
+    sliderContrast.addEventListener('input', (e) => {
+        valContrast.textContent = `${e.target.value}%`;
+        renderWorkspace();
+    });
+    sliderSaturation.addEventListener('input', (e) => {
+        valSaturation.textContent = `${e.target.value}%`;
+        renderWorkspace();
+    });
+    inputOverlayText.addEventListener('input', () => {
+        renderWorkspace();
+    });
+
+    // Block Size Selector Listener
+    selectBlockSize.addEventListener('change', (e) => {
+        const [w, h] = e.target.value.split('x').map(Number);
+        activeBlockSize = { w, h };
+        addLog(`Target block size updated to ${w}x${h}`);
+        if (soundEnabled) sound.playBeep(700, 0.05);
+        renderWorkspace();
+    });
+
+    // Generate Demo ASTC
+    btnDemo.addEventListener('click', () => {
+        addLog('Generating high-fidelity Cyberpunk Demo ASTC...');
+        originalHeaderBytes = null;
+        if (infoWrapper) {
+            infoWrapper.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                <span class="text-zinc-500">NONE DETECTED</span>
+            `;
+        }
+        const demoBuffer = window.ASTCEngine.generateDemo(256, 256, 8, 8);
+        processASTC(demoBuffer, 'cyberpunk_demo.astc');
+    });
+
+    // Compile & Export ASTC
+    btnCompile.addEventListener('click', () => {
+        if (!originalImage) {
+            addLog('No texture loaded to compile.', 'error');
+            if (soundEnabled) sound.playError();
+            return;
+        }
+
+        addLog('Starting ASTC compilation...');
+        setProgress(10);
+
+        setTimeout(() => {
+            try {
+                const blockW = activeBlockSize.w;
+                const blockH = activeBlockSize.h;
+                const finalImageData = editorCtx.getImageData(0, 0, editorCanvas.width, editorCanvas.height);
+
+                const magic = originalHeader ? originalHeader.magic : 0x5CA11AB1;
+                const compiledBytes = window.ASTCEngine.encode(finalImageData, blockW, blockH, magic, (percent) => {
+                    setProgress(10 + percent * 0.8);
+                });
+
+                // Stitch original custom game header bytes back if they exist
+                let finalBytes = compiledBytes;
+                if (originalHeaderBytes) {
+                    finalBytes = new Uint8Array(originalHeaderBytes.length + compiledBytes.length);
+                    finalBytes.set(originalHeaderBytes, 0);
+                    finalBytes.set(compiledBytes, originalHeaderBytes.length);
+                    addLog(`Stitched original custom game header (${originalHeaderBytes.length} bytes) back to the beginning.`, 'warning');
+                }
+
+                // Trigger Download
+                const blob = new Blob([finalBytes], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = inputFilename.value || 'texture.astc';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                addLog(`Compilation complete! Exported ${inputFilename.value} (${(finalBytes.length / 1024).toFixed(2)} KB)`, 'success');
+                if (soundEnabled) sound.playSuccess();
+                setProgress(100);
+            } catch (err) {
+                addLog(`Compilation failed: ${err.message}`, 'error');
+                if (soundEnabled) sound.playError();
+                setProgress(0);
+            }
+        }, 100);
+    });
+});
+</script></body>
+</html>
